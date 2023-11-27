@@ -306,7 +306,7 @@ def server(con):
                 data = pickle.dumps(a)
                 con.send(data)
                 
-                
+          
             elif comando[0] == "cadastro_U":
                 veri = cadastro.cadastrar_pessoa(comando[1], comando[2], comando[3], comando[4], comando[5])
                 con.send(veri.encode())
