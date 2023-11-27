@@ -32,29 +32,26 @@ class Cadastro:
         conect = mysql.connect(host='localhost', database='sistema_de_servico', user='root', password='Ripanlong807!')
         cursor = conect.cursor()
 
-        cursor.execute("SHOW TABLES IN sistema_de_servico LIKE 'clientes'")
-        existe_tabela = cursor.fetchone() is not None
-
-        if existe_tabela:
-            cursor.execute("SELECT * FROM clientes WHERE cpf_C  = %s AND senha = %s", (cpf, senha))
-            resultados = cursor.fetchone()
-
+        cursor.execute("SELECT * FROM clientes WHERE cpf_C  = %s AND senha = %s", (cpf, senha))
+        resultados = cursor.fetchone()
 
         if resultados == None:            
-            cursor.execute("SHOW TABLES IN sistema_de_servico LIKE 'servicos'")
-            existe_tabela = cursor.fetchone() is not None
+            cursor.execute("SELECT * FROM servicos WHERE cpf = %s AND senha = %s", (cpf, senha))
+            resultados = cursor.fetchone()
+            
+            if resultados != None:
+                self.verifica =  True
 
-            if existe_tabela:
-                cursor.execute("SELECT * FROM servicos WHERE cpf = %s AND senha = %s", (cpf, senha))
-                resultados = cursor.fetchone()
-
-                if resultados != []:
-                    self.verifica =  True
         conect.close()
         if resultados == []:
             return None
         else:
             return resultados      
+
+
+
+    ########################CADASTRO############################
+
 
     def de_cria(self):
         conect = mysql.connect(host='localhost', user='root', password='Ripanlong807!')
@@ -67,12 +64,13 @@ class Cadastro:
         sql_servicos = """CREATE TABLE IF NOT EXISTS servicos(id integer PRIMARY KEY AUTO_INCREMENT, Nome text NOT NULL, Senha text NOT NULL, local text NOT NULL, cpf int NOT null, especializacao text NOT NULL, area text NOT NULL); """
         cursor.execute(sql_servicos)
 
-        sql_clientes = """CREATE TABLE IF NOT EXISTS clientes(id integer PRIMARY KEY AUTO_INCREMENT, nome text NOT NULL, senha text NOT NULL, endereco text NOT NULL, cpf_c int NOT null, nascimento text NOT NULL, id_servico_escolhido integer DEFAULT NULL, FOREIGN KEY (id_servico_escolhido) REFERENCES servicos(id)); """
+        sql_clientes = """CREATE TABLE IF NOT EXISTS clientes(id integer PRIMARY KEY AUTO_INCREMENT, nome text NOT NULL, senha text NOT NULL, endereco text NOT NULL, cpf_c int NOT null, nascimento text NOT NULL); """
         cursor.execute(sql_clientes)
         
+        sql_escolhidos = """CREATE TABLE IF NOT EXISTS servicos_escolhidos(cliente_id integer, servico_id integer, FOREIGN KEY (cliente_id) REFERENCES clientes(id), FOREIGN KEY (servico_id) REFERENCES servicos(id), PRIMARY KEY (cliente_id, servico_id));"""
+        cursor.execute(sql_escolhidos)
+                
         conect.close()
-
-
 
     def cadastrar_pessoa(self,nome,senha,endereco,cpf_C,nascimento):
         A = "F"
@@ -81,15 +79,12 @@ class Cadastro:
         cursor = conect.cursor()
                 
         existe1 = self.busca(cpf_C,senha,0)
-        if existe1==[]:
+
+        if existe1==None:
             try:
                 cursor.execute('INSERT INTO clientes (nome, senha, endereco, cpf_C,nascimento) VALUES (%s, %s, %s, %s, %s)', (nome, senha, endereco, int(cpf_C), nascimento))
-                # print(f'Foram inseridas {cursor.rowcount} linhas')
                 conect.commit()
 
-                # cursor.execute('SELECT * from clientes')
-                # for c in cursor:
-                #     print(c)
                 A = "T"
             except:
                 print("Banco de dados ja existente!")
@@ -106,17 +101,12 @@ class Cadastro:
         cursor = conect.cursor() 
 
         existe = self.busca(cpf,Senha,0)
-        # print(existe)
-        if existe==[]:
+        if existe==None:
             try:
                 cursor.execute('INSERT INTO servicos (Nome, Senha, local, cpf,especializacao, area) VALUES (%s, %s, %s, %s, %s, %s)', (Nome, Senha, local, int(cpf),especializacao, area))
-                print(f'Foram inseridas {cursor.rowcount} linhas')
                 conect.commit()
-
-                cursor.execute('SELECT * from servicos')
-                for c in cursor:
-                    print(c)
                 A = "T"
+                
             except ZeroDivisionError as erro:
                 print("Banco de dados ja existente! {erro}")
                 A = "F"
@@ -125,6 +115,13 @@ class Cadastro:
                     conect.close()
         return A
         
+
+
+    ########################CADASTRO############################
+
+
+
+
     def apagar_conta(self):
         conn = mysql.connect(
             host='localhost',
@@ -135,11 +132,9 @@ class Cadastro:
 
         cursor = conn.cursor()
         if self.verifica == False:
-            # print("cliente")
             comando_sql = "DELETE FROM clientes WHERE cpf_C = %s"
             id_para_apagar = self.conta[4]
         else:
-            # print("arroz")
             comando_sql = "DELETE FROM servicos WHERE cpf = %s"
             id_para_apagar = self.conta[5]
         
@@ -149,6 +144,8 @@ class Cadastro:
         conn.close()
         self.conta = []
         self.verifica = False
+                       
+                       
                           
     def busca(self,cpf,senha,x):
         conect = mysql.connect(host='localhost', database='sistema_de_servico', user='root', password='Ripanlong807!')
@@ -162,7 +159,27 @@ class Cadastro:
         print(resultados)
         conect.close()
         return resultados
-            
+    
+    
+    def adicionar(self, servico_id):
+        conn = mysql.connect(
+            host='localhost',
+            user='root',
+            password='Ripanlong807!',
+            database='sistema_de_servico'
+        )
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM servicos_escolhidos WHERE cliente_id = %s AND servico_id = %s", (self.conta[0], servico_id))
+        existe_associacao = cursor.fetchone()
+
+        if not existe_associacao:
+            cursor.execute("INSERT INTO servicos_escolhidos (cliente_id, servico_id) VALUES (%s, %s)", (self.conta[0], servico_id))
+
+        conn.commit()
+        conn.close()
+        
+                
     def alterar_U(self,novo_nome,nova_senha,novo_endereco,novo_cpf,nova_nascimento):
         try:
             conn = mysql.connect(
@@ -226,35 +243,39 @@ class Cadastro:
                 connec.close()
                 
         if novos_servicos is not None:
-            print(novos_servicos)
             return novos_servicos
 
-    def item_clicado(self,index):
-        item_selecionado = index.data()
-
-        informacoes = item_selecionado.split(" ")
-        nome,local,espec,area = informacoes[1],informacoes[4],informacoes[7],informacoes[10]
-        
-        conect = mysql.connect(host='localhost', database='sistema_de_servico', user='root', password='Ripanlong807!')
-        cursor = conect.cursor()
-
-        cursor.execute("SELECT id, Nome, local, especializacao, area FROM servicos WHERE Nome  = %s AND local = %s AND especializacao = %s AND area = %s", (nome, local,espec,area))
-
-        resultados = cursor.fetchall()
-
-        if resultados:
-            id_servico_encontrado = resultados[0][0]
-            id_cliente = self.conta[4]
-
-            cursor.execute("UPDATE clientes SET id_servico_escolhido = %s WHERE id = %s", (id_servico_encontrado, id_cliente))
-
-            conect.commit()
-            conect.close()
-
-        
-        print(nome,local,espec,area)
+    def reset(self):
+        self.conta = []
+        self.verifica = False
 
 
+    def popular_2(self):
+        try:
+            servicos = []
+            con = mysql.connect(
+                host='localhost',
+                user='root',
+                password='Ripanlong807!',
+                database='sistema_de_servico'
+            )
+            cursor = con.cursor()
+
+            cursor.execute("SELECT servico_id FROM servicos_escolhidos WHERE cliente_id = %s", (self.conta[0],))
+            ids = cursor.fetchall()
+
+            for id_servico in ids:
+                cursor.execute("SELECT * FROM servicos WHERE id = %s", (id_servico[0],))
+                servico = cursor.fetchone()
+                servicos.append(servico)
+            print("passou")
+            return servicos
+        except Exception as e:
+            print(f"Erro: {e}")
+            return None
+        finally:
+            cursor.close()
+            con.close()
 
 
 
@@ -276,6 +297,15 @@ def server(con):
                 x = False
             elif recebe.decode() == 'Apagar':
                 cadastro.apagar_conta()
+                
+            elif recebe.decode() == 'reset':
+                cadastro.reset()
+                
+            elif recebe.decode() == "populando_lista_2":
+                a = cadastro.popular_2()
+                data = pickle.dumps(a)
+                con.send(data)
+                
                 
             elif comando[0] == "cadastro_U":
                 veri = cadastro.cadastrar_pessoa(comando[1], comando[2], comando[3], comando[4], comando[5])
@@ -306,10 +336,12 @@ def server(con):
                 servicos = cadastro.busca(int(comando[1]),comando[2],1)
                 if servicos != []:
                     a = 1
+                    print(servicos[0])
+                    cadastro.adicionar(servicos[0])
                 else:
                     a = 0
-                con.send(a.encode())
-                
+                con.send(str(a).encode())
+                                
             elif x:
                 pass
             

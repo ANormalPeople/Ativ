@@ -135,8 +135,6 @@ class Main(QMainWindow, Ui_Main):
         
         #TLE_VER_PEDIDOS
         self.ver_pedidos.pushButton.clicked.connect(self.botaoVolta_prestador)
-        
-        self.verifica = False
 
     #####CADASTRO#####
     def botaoCadastra_cliente(self):
@@ -245,7 +243,8 @@ class Main(QMainWindow, Ui_Main):
             
     def botaoVoltar_inicio(self):
         self.QtStack.setCurrentIndex(0)
-        self.verifica = False
+        mensagem = "reset"
+        cliente_socket.send(mensagem.encode())
 
     def abirtelaCadastro_Servico(self):
         self.QtStack.setCurrentIndex(1)
@@ -266,6 +265,7 @@ class Main(QMainWindow, Ui_Main):
         listview = self.tela_escolha_servico.listView
         listview.clicked.connect(self.item_clicado)
         self.popular_lista(received_data)
+        self.popular_lista_2()
         self.QtStack.setCurrentIndex(5)
 
 
@@ -284,11 +284,27 @@ class Main(QMainWindow, Ui_Main):
             item.setData(cpf, Qt.UserRole + 1)
             item.setData(senha, Qt.UserRole + 2)
 
-
             model.setItem(row, 0, item)
 
         listview.clicked.connect(self.item_clicado)
+        
+        
+    def popular_lista_2(self):
+        listview_2 = self.tela_escolha_servico.listView_2
+        model = QStandardItemModel()
+        listview_2.setModel(model)
+        mensagem = "populando_lista_2"
+        cliente_socket.send(mensagem.encode())
+        recebida = cliente_socket.recv(1024)
+        data = pickle.loads(recebida)
+        print(data)
+        for row, servicos in enumerate(data):
+            data = f"Nome: {servicos[1]}"
+            item = QStandardItem(data)
+            model.setItem(row, 0, item)
 
+
+## INACABADO
     def item_clicado(self,index):
         if index.isValid():
             item = index.model().itemFromIndex(index)
@@ -300,6 +316,9 @@ class Main(QMainWindow, Ui_Main):
 
             print(f"CPF clicado: {cpf} senha: {senha}")
             
+            msg = cliente_socket.recv(1024).decode()
+        self.popular_lista_2()
+
             
     def botaoalterar_dados_cliente(self):
         self.QtStack.setCurrentIndex(6)
