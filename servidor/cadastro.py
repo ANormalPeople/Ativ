@@ -134,9 +134,12 @@ class Cadastro:
         if self.verifica == False:
             comando_sql = "DELETE FROM clientes WHERE cpf_C = %s"
             id_para_apagar = self.conta[4]
+            print(self.conta[0])
+            cursor.execute("DELETE FROM servicos_escolhidos WHERE cliente_id = %s", (self.conta[0],))
         else:
             comando_sql = "DELETE FROM servicos WHERE cpf = %s"
             id_para_apagar = self.conta[5]
+            cursor.execute("DELETE FROM servicos_escolhidos WHERE servico_id = %s", (self.conta[0],))
         
         cursor.execute(comando_sql, (id_para_apagar,))
 
@@ -160,24 +163,8 @@ class Cadastro:
         conect.close()
         return resultados
     
-    
-    def adicionar(self, servico_id):
-        conn = mysql.connect(
-            host='localhost',
-            user='root',
-            password='Ripanlong807!',
-            database='sistema_de_servico'
-        )
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT * FROM servicos_escolhidos WHERE cliente_id = %s AND servico_id = %s", (self.conta[0], servico_id))
-        existe_associacao = cursor.fetchone()
-
-        if not existe_associacao:
-            cursor.execute("INSERT INTO servicos_escolhidos (cliente_id, servico_id) VALUES (%s, %s)", (self.conta[0], servico_id))
-
-        conn.commit()
-        conn.close()
+        
+#############ALTERAR DADOS#########################
         
                 
     def alterar_U(self,novo_nome,nova_senha,novo_endereco,novo_cpf,nova_nascimento):
@@ -222,6 +209,12 @@ class Cadastro:
             return "F"
 
 
+#############ALTERAR DADOS#########################
+
+
+
+##############VER_SERVICOS#########################
+
     def esolhar_servico(self):
         try:
             connec = mysql.connect(
@@ -245,11 +238,6 @@ class Cadastro:
         if novos_servicos is not None:
             return novos_servicos
 
-    def reset(self):
-        self.conta = []
-        self.verifica = False
-
-
     def popular_2(self):
         try:
             servicos = []
@@ -268,14 +256,90 @@ class Cadastro:
                 cursor.execute("SELECT * FROM servicos WHERE id = %s", (id_servico[0],))
                 servico = cursor.fetchone()
                 servicos.append(servico)
-            print("passou")
+            print(servicos)
             return servicos
+        
         except Exception as e:
             print(f"Erro: {e}")
             return None
         finally:
             cursor.close()
             con.close()
+
+    def adicionar(self, servico_id):
+        conn = mysql.connect(
+            host='localhost',
+            user='root',
+            password='Ripanlong807!',
+            database='sistema_de_servico'
+        )
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM servicos_escolhidos WHERE cliente_id = %s AND servico_id = %s", (self.conta[0], servico_id))
+        existe_associacao = cursor.fetchone()
+
+        if not existe_associacao:
+            cursor.execute("INSERT INTO servicos_escolhidos (cliente_id, servico_id) VALUES (%s, %s)", (self.conta[0], servico_id))
+
+        conn.commit()
+        conn.close()
+
+
+    def remove(self,id):
+        conn = mysql.connect(
+            host='localhost',
+            user='root',
+            password='Ripanlong807!',
+            database='sistema_de_servico'
+        )
+        cursor = conn.cursor()
+        print(self.conta[0],id)
+        cursor.execute("DELETE FROM servicos_escolhidos WHERE cliente_id = %s AND servico_id = %s",(self.conta[0],id))
+        conn.commit()
+        conn.close()
+
+##############VER_SERVICOS#########################
+
+
+###############VER_PEDIDOS#########################
+    def pedidos(self):
+        saida = []
+        try:
+            saida = []
+            conn = mysql.connect(
+                host='localhost',
+                user='root',
+                password='Ripanlong807!',
+                database='sistema_de_servico'
+            )
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT cliente_id FROM servicos_escolhidos WHERE servico_id = %s", (self.conta[0],))
+            ids = cursor.fetchall()
+
+            for cliente_id in ids:
+                cursor.execute("SELECT * FROM clientes WHERE id = %s", cliente_id)
+                cliente_info = cursor.fetchone()
+                if cliente_info:
+                    saida.append(cliente_info)
+
+            return saida
+
+        except Exception as e:
+            print(f"Erro ao acessar o banco de dados: {e}")
+            return saida
+
+        finally:
+            cursor.close()
+            conn.close()
+
+###############VER_PEDIDOS#########################
+
+
+
+    def reset(self):
+        self.conta = []
+        self.verifica = False
 
 
 
@@ -306,7 +370,6 @@ def server(con):
                 data = pickle.dumps(a)
                 con.send(data)
                 
-          
             elif comando[0] == "cadastro_U":
                 veri = cadastro.cadastrar_pessoa(comando[1], comando[2], comando[3], comando[4], comando[5])
                 con.send(veri.encode())
@@ -341,6 +404,14 @@ def server(con):
                 else:
                     a = 0
                 con.send(str(a).encode())
+                
+            elif comando[0] == "remove":
+                cadastro.remove(int(comando[1]))
+                
+            elif comando[0] == "pedidos":
+                a = cadastro.pedidos()
+                data = pickle.dumps(a)
+                con.send(data)
                                 
             elif x:
                 pass

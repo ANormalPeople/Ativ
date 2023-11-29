@@ -1,17 +1,13 @@
 import sys
-import mysql.connector as mysql
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox, QWidget, QVBoxLayout, QListView
-from PyQt5.QtCore import QStringListModel, Qt
+from PyQt5.QtCore import Qt, QModelIndex
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 import socket
 import pickle
 
 from tela_inicial import Tela_inicial
-from tela_login import Tela_Login
 from tela_cadastro_servicos import Tela_cadastro_servicos
-# from tela_buscar import Tela_Buscar
-# from tela_cadastro import Tela_Cadastro 
 from cadastro_cliente import Tela_cadastro_cliente
 from tela_cliente import Tela_cliente
 from tela_prestador_servico import Tela_prestador_servico
@@ -256,24 +252,28 @@ class Main(QMainWindow, Ui_Main):
         self.QtStack.setCurrentIndex(3)
 
     def abrirTelaesolhar_servico(self):
-        
         mensagem = "escolha"
         cliente_socket.send(mensagem.encode())
         
         recebida = cliente_socket.recv(1024)
         received_data = pickle.loads(recebida)
-        listview = self.tela_escolha_servico.listView
-        listview.clicked.connect(self.item_clicado)
-        self.popular_lista(received_data)
-        self.popular_lista_2()
-        self.QtStack.setCurrentIndex(5)
 
+        self.item_clicado_F = None
+
+        self.tela_escolha_servico.listView_2.clicked.connect(self.armazenar_item)
+
+        self.tela_escolha_servico.pushButton_3.clicked.connect(self.acao_botao)
+        self.tela_escolha_servico.listView.clicked.connect(self.item_clicado)
+        self.popular_lista(received_data)
+
+        self.popular_lista_2()
+
+        self.QtStack.setCurrentIndex(5)
 
     def popular_lista(self, received_data):
         listview = self.tela_escolha_servico.listView
         model = QStandardItemModel()
         listview.setModel(model)
-        #software carpentry
         for row, servico in enumerate(received_data):
             cpf = servico[4]
             senha = servico[2]
@@ -286,40 +286,61 @@ class Main(QMainWindow, Ui_Main):
 
             model.setItem(row, 0, item)
 
-        listview.clicked.connect(self.item_clicado)
-        
-        
     def popular_lista_2(self):
         listview_2 = self.tela_escolha_servico.listView_2
         model = QStandardItemModel()
         listview_2.setModel(model)
+
         mensagem = "populando_lista_2"
         cliente_socket.send(mensagem.encode())
         recebida = cliente_socket.recv(1024)
         data = pickle.loads(recebida)
-        print(data)
+
         for row, servicos in enumerate(data):
+            id = servicos[0]
             data = f"Nome: {servicos[1]}"
+            
             item = QStandardItem(data)
+            
+            item.setData(id, Qt.UserRole + 1)
+            
             model.setItem(row, 0, item)
 
-
-## INACABADO
-    def item_clicado(self,index):
+    def item_clicado(self, index: QModelIndex):
         if index.isValid():
             item = index.model().itemFromIndex(index)
 
             cpf = item.data(Qt.UserRole + 1)
             senha = item.data(Qt.UserRole + 2)
             mensagem = f"busca,{cpf},{senha}"
-            cliente_socket.send(mensagem.encode())
-
-            print(f"CPF clicado: {cpf} senha: {senha}")
-            
+            cliente_socket.send(mensagem.encode())            
             msg = cliente_socket.recv(1024).decode()
-        self.popular_lista_2()
+            self.popular_lista_2()
+    
+    # 1 tirar o alterar cpf do alterar dados
+    # 2 deixar o botao de apagar conta no final da lista para igualar com o do cliente
+    # 3 botar uma opção de aceitar ou recusar os pedidos enviados pelo cliente na tela podendo ser dois botoes um "ACEITAR" e outro
+    # "RECUSAR" que quando apertados junto com a lista aceitem ou recusem o pedido ou abrir uma mini tela ao clicar em um valor
+    # na lista que da a descrição do pedido e 2 opções 1 para aceitar e outra para recusar eles
+    
+    ##ARMAZENAR O ID NA LISTA2 PARA ASSIM PODER FAZER A REMOÇÃO CORRETAMETNE
 
-            
+    def armazenar_item(self, index: QModelIndex):
+        self.true = False
+        if index.isValid():
+            self.true = True
+            item = self.tela_escolha_servico.listView_2.model().itemFromIndex(index)
+            self.item_clicado_F = item
+
+
+    def acao_botao(self):
+        if self.item_clicado_F is not None and self.true == True:
+            id = self.item_clicado_F.data(Qt.UserRole + 1)
+            mensagem = f"remove,{id}"
+            cliente_socket.send(mensagem.encode())
+            self.true = False
+            self.popular_lista_2()
+                
     def botaoalterar_dados_cliente(self):
         self.QtStack.setCurrentIndex(6)
         
@@ -336,7 +357,25 @@ class Main(QMainWindow, Ui_Main):
         self.QtStack.setCurrentIndex(7)
         
     def Abrir_pedidos(self):
+        mensagem = "pedidos"
+        cliente_socket.send(mensagem.encode())
+        data_recebida = cliente_socket.recv(1024)
+        data = pickle.loads(data_recebida)
+        self.popular_pedidos(data)
         self.QtStack.setCurrentIndex(8)
+        
+        
+        
+    def popular_pedidos(self,received_data):
+        listview = self.ver_pedidos.listView
+        model = QStandardItemModel()
+        listview.setModel(model)
+        for row, servico in enumerate(received_data):
+            dados_servico = f"Nome: {servico[1]}"
+
+            item = QStandardItem(dados_servico)
+
+            model.setItem(row, 0, item)
         
     def alterar_dados_cliente_banco(self):
         

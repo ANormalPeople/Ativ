@@ -26,9 +26,6 @@ class Tela_escolha_servico(object):
         font.setPointSize(12)
         self.label.setFont(font)
         self.label.setObjectName("label")
-        self.pushButton = QtWidgets.QPushButton(self.centralwidget)
-        self.pushButton.setGeometry(QtCore.QRect(450, 40, 131, 41))
-        self.pushButton.setObjectName("pushButton")
         self.pushButton_2 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_2.setGeometry(QtCore.QRect(10, 520, 93, 28))
         font = QtGui.QFont()
@@ -68,7 +65,6 @@ class Tela_escolha_servico(object):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.label.setText(_translate("MainWindow", "serviços disponiveis:"))
-        self.pushButton.setText(_translate("MainWindow", "escolher"))
         self.pushButton_2.setText(_translate("MainWindow", "voltar"))
         self.label_2.setText(_translate("MainWindow", "serviços escolhidos:"))
         self.pushButton_3.setText(_translate("MainWindow", "remover"))
