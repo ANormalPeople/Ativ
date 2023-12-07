@@ -139,7 +139,10 @@ class Main(QMainWindow, Ui_Main):
         endereco = self.tela_cadastro_cliente.lineEdit_2.text()
         cpf_C = self.tela_cadastro_cliente.lineEdit_3.text()
         nascimento = self.tela_cadastro_cliente.lineEdit_4.text()
-        if not(nome == '' or senha == '' or endereco == '' or cpf_C == '' or nascimento == ''):
+        if not self.numero(cpf_C):
+            QMessageBox.information(None,'POOII', 'CPF invalido!!')
+
+        elif not(nome == '' or senha == '' or endereco == '' or cpf_C == '' or nascimento == ''):
             menssagem =  f'cadastro_U,{nome},{senha},{endereco},{cpf_C},{nascimento}'
             cliente_socket.send(menssagem.encode())
             recebida = cliente_socket.recv(1024).decode()
@@ -166,7 +169,10 @@ class Main(QMainWindow, Ui_Main):
         especializacao = self.tela_cadastro_servico.ESPECIALIZACAO_cadastro_servico.text()
         area = self.tela_cadastro_servico.AREA_cadastro_servico.text()
         
-        if not(Nome == '' or Senha == '' or local == '' or cpf == '' or especializacao == '' or area == ''):
+        if not self.numero(cpf):
+            QMessageBox.information(None,'POOII', 'CPF invalido!!')
+        
+        elif not(Nome == '' or Senha == '' or local == '' or cpf == '' or especializacao == '' or area == ''):
             menssagem =  f'cadastro_S,{Nome},{Senha},{local},{cpf},{especializacao},{area}'
             cliente_socket.send(menssagem.encode())
             recebida = cliente_socket.recv(1024).decode()
@@ -435,6 +441,14 @@ class Main(QMainWindow, Ui_Main):
         mensagem = "bye"
         cliente_socket.send(mensagem.encode())
         app.quit()
+        
+    def numero(self,cpf):
+        a = str(cpf)
+        if a.isnumeric():
+            return True
+        else:
+            return False
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
