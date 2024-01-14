@@ -13,15 +13,27 @@ from tela_cliente import Tela_cliente
 from tela_prestador_servico import Tela_prestador_servico
 from tela_escolha_servico import Tela_escolha_servico
 from alterar_dados_cliente import Alterar_dados_cliente
-from altera_dados_prestador_serviços import *
+from altera_dados_prestador_serviços import Altera_dados_prestador_serviços
 from ver_pedidos import Ver_pedidos
 
+class Cliente:
+    
+    def __init__(self,ip,port):
+        self.ip = ip
+        self.port = port
+        self.addr = ((ip,port))
+        self.cliente_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)        
+    
+    def conectar_servidor(self):
+        """Utilizado para fazer a conexão com o servidor
         
-ip =  'localhost'
-port = 8007
-addr = ((ip,port))
-cliente_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-cliente_socket.connect(addr)
+        """
+        try:
+            self.cliente_socket.connect(self.addr)
+            print("Conectado ao servidor.")
+            self.show_main = Main(self.cliente_socket)
+        except Exception as e:
+            print(f"Erro ao conectar ao servidor: {e}")
 
 
 class Ui_Main(QtWidgets.QWidget):
@@ -63,7 +75,7 @@ class Ui_Main(QtWidgets.QWidget):
         self.alterar_dados_cliente = Alterar_dados_cliente()
         self.alterar_dados_cliente.setupUi(self.stack6)
 
-        self.altera_dados_prestador_serviços = altera_dados_prestador_serviços()
+        self.altera_dados_prestador_serviços = Altera_dados_prestador_serviços()
         self.altera_dados_prestador_serviços.setupUi(self.stack7)
         
         self.ver_pedidos = Ver_pedidos()
@@ -81,7 +93,8 @@ class Ui_Main(QtWidgets.QWidget):
         
 
 class Main(QMainWindow, Ui_Main):
-    def __init__(self):
+    def __init__(self,cliente_socket):
+        self.cliente_socket = cliente_socket
         super(Main, self).__init__(None)
         self.setupUi(self)
         
@@ -144,8 +157,8 @@ class Main(QMainWindow, Ui_Main):
 
         elif not(nome == '' or senha == '' or endereco == '' or cpf_C == '' or nascimento == ''):
             menssagem =  f'cadastro_U,{nome},{senha},{endereco},{cpf_C},{nascimento}'
-            cliente_socket.send(menssagem.encode())
-            recebida = cliente_socket.recv(1024).decode()
+            self.cliente_socket.send(menssagem.encode())
+            recebida = self.cliente_socket.recv(1024).decode()
             print(recebida)
             if (recebida == "T"):
                 QMessageBox.information(None,'POOII', 'Cadastro realizado com sucesso!')
@@ -174,8 +187,8 @@ class Main(QMainWindow, Ui_Main):
         
         elif not(Nome == '' or Senha == '' or local == '' or cpf == '' or especializacao == '' or area == ''):
             menssagem =  f'cadastro_S,{Nome},{Senha},{local},{cpf},{especializacao},{area}'
-            cliente_socket.send(menssagem.encode())
-            recebida = cliente_socket.recv(1024).decode()
+            self.cliente_socket.send(menssagem.encode())
+            recebida = self.cliente_socket.recv(1024).decode()
             
             if (recebida == "T"):
                 QMessageBox.information(None,'POOII', 'Cadastro realizado com sucesso!')
@@ -192,8 +205,6 @@ class Main(QMainWindow, Ui_Main):
         self.tela_cadastro_servico.AREA_cadastro_servico.setText('')
         self.QtStack.setCurrentIndex(0)
 
-
-
     ##########################
 
     def botao_login(self):
@@ -203,8 +214,8 @@ class Main(QMainWindow, Ui_Main):
 
         if not(CPF == '' or SENHA == ''):
             menssagem =  f'Login,{SENHA},{CPF}'
-            cliente_socket.send(menssagem.encode())
-            recebida = cliente_socket.recv(1024).decode()
+            self.cliente_socket.send(menssagem.encode())
+            recebida = self.cliente_socket.recv(1024).decode()
             comando = recebida[1:-1].split(",")
             comando = [item.strip() for item in comando]
             for i in range(len(comando)):
@@ -219,6 +230,7 @@ class Main(QMainWindow, Ui_Main):
                 if(self.verifica=="T"):
                     self.QtStack.setCurrentIndex(4)
                     self.tela_prestador_servico.label_4.setText(f'logado como {Nome}')
+                    self.popular_noficiacoes()
 
                 else:
                     self.QtStack.setCurrentIndex(3)
@@ -231,22 +243,62 @@ class Main(QMainWindow, Ui_Main):
 
         self.tela_inicial.CPF_LOGIN.setText('')
         self.tela_inicial.SENHA_LOGIN.setText('')
-
-    def botaoalterar_dados(self):
-        pass
     
-    def botao_apagar_conta(self):
-        menssagem =  'Apagar'
-        cliente_socket.send(menssagem.encode())
-        self.QtStack.setCurrentIndex(0)
+#########AREA DAS NOTIFICAÇÕES##########    
+    
+    def popular_noficiacoes(self):
+        listview = self.tela_prestador_servico.listView
+        model = QStandardItemModel()
+        listview.setModel(model)
+        mensagem = "pedidos"
+        self.cliente_socket.send(mensagem.encode())
+        data_recebida = self.cliente_socket.recv(1024)
+        
+        if pickle.loads(data_recebida) != []:
+            data,valida = pickle.loads(data_recebida)
+        else:
+            data,valida = [],[]
+        print(data,valida)
+        i = 0
+        for row, servicos in enumerate(data):
+            if(valida[i] == ('F',)):
+                id = servicos[0]
+                data = f"Pedido recebido de {servicos[1]}"            
+                item = QStandardItem(data)            
+                item.setData(id, Qt.UserRole + 1)
+                model.setItem(row, 0, item)
+            i += 1
+        self.tela_prestador_servico.listView.clicked.connect(self.item_clicado_notificacao)
 
-    def botao_buscar_servico(self):
-        pass    
-            
+        
+
+    def item_clicado_notificacao(self, index: QModelIndex):
+        if index.isValid():
+            reply = QMessageBox.question(self,'Alerta!',f'Deseja aceitar esse servico?',QMessageBox.Yes | QMessageBox.No,QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                item = index.model().itemFromIndex(index)
+                id = item.data(Qt.UserRole + 1)
+                mensagem = f"modificar_validade,{id}"
+                self.cliente_socket.send(mensagem.encode())
+                # self.popular_noficiacoes()
+                # recive = cliente_socket.recv(1024).decode
+                
+##################################################
+                
+                
+                
+                
+    def botao_apagar_conta(self):
+        reply = QMessageBox.question(self,'Alerta!',f'Tem certeza que deseja apagar esta conta?',QMessageBox.Yes | QMessageBox.No,QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            menssagem =  'Apagar'
+            self.cliente_socket.send(menssagem.encode())
+            self.QtStack.setCurrentIndex(0)
+
     def botaoVoltar_inicio(self):
         self.QtStack.setCurrentIndex(0)
         mensagem = "reset"
-        cliente_socket.send(mensagem.encode())
+        self.cliente_socket.send(mensagem.encode())
 
     def abirtelaCadastro_Servico(self):
         self.QtStack.setCurrentIndex(1)
@@ -259,9 +311,9 @@ class Main(QMainWindow, Ui_Main):
 
     def abrirTelaesolhar_servico(self):
         mensagem = "escolha"
-        cliente_socket.send(mensagem.encode())
+        self.cliente_socket.send(mensagem.encode())
         
-        recebida = cliente_socket.recv(1024)
+        recebida = self.cliente_socket.recv(1024)
         received_data = pickle.loads(recebida)
 
         self.item_clicado_F = None
@@ -298,8 +350,8 @@ class Main(QMainWindow, Ui_Main):
         listview_2.setModel(model)
 
         mensagem = "populando_lista_2"
-        cliente_socket.send(mensagem.encode())
-        recebida = cliente_socket.recv(1024)
+        self.cliente_socket.send(mensagem.encode())
+        recebida = self.cliente_socket.recv(1024)
         data = pickle.loads(recebida)
 
         for row, servicos in enumerate(data):
@@ -314,14 +366,17 @@ class Main(QMainWindow, Ui_Main):
 
     def item_clicado(self, index: QModelIndex):
         if index.isValid():
-            item = index.model().itemFromIndex(index)
+            reply = QMessageBox.question(self,'Alerta!',f'Deseja selecionar esse servico?',QMessageBox.Yes | QMessageBox.No,QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                item = index.model().itemFromIndex(index)
 
-            cpf = item.data(Qt.UserRole + 1)
-            senha = item.data(Qt.UserRole + 2)
-            mensagem = f"busca,{cpf},{senha}"
-            cliente_socket.send(mensagem.encode())            
-            msg = cliente_socket.recv(1024).decode()
-            self.popular_lista_2()
+                cpf = item.data(Qt.UserRole + 1)
+                senha = item.data(Qt.UserRole + 2)
+                mensagem = f"busca,{cpf},{senha}"
+                self.cliente_socket.send(mensagem.encode())            
+                msg = self.cliente_socket.recv(1024).decode()
+                self.popular_lista_2()
+            
     
     # 1 tirar o alterar cpf do alterar dados
     # 2 deixar o botao de apagar conta no final da lista para igualar com o do cliente
@@ -343,7 +398,7 @@ class Main(QMainWindow, Ui_Main):
         if self.item_clicado_F is not None and self.true == True:
             id = self.item_clicado_F.data(Qt.UserRole + 1)
             mensagem = f"remove,{id}"
-            cliente_socket.send(mensagem.encode())
+            self.cliente_socket.send(mensagem.encode())
             self.true = False
             self.popular_lista_2()
                 
@@ -364,36 +419,42 @@ class Main(QMainWindow, Ui_Main):
         
     def Abrir_pedidos(self):
         mensagem = "pedidos"
-        cliente_socket.send(mensagem.encode())
-        data_recebida = cliente_socket.recv(1024)
-        data = pickle.loads(data_recebida)
-        self.popular_pedidos(data)
+        self.cliente_socket.send(mensagem.encode())
+        data_recebida = self.cliente_socket.recv(1024)
+        
+        if pickle.loads(data_recebida) != []:
+            data,valida = pickle.loads(data_recebida)
+        else:
+            data,valida = [],[]
+        print(data,valida)    
+        self.popular_pedidos(data,valida)
         self.QtStack.setCurrentIndex(8)
         
-        
-        
-    def popular_pedidos(self,received_data):
+    def popular_pedidos(self,received_data,validacao):
         listview = self.ver_pedidos.listView
         model = QStandardItemModel()
         listview.setModel(model)
+        i = 0
         for row, servico in enumerate(received_data):
-            dados_servico = f"Nome: {servico[1]}"
+            if(validacao[i] == ('T',)):
 
-            item = QStandardItem(dados_servico)
+                dados_servico = f"Nome: {servico[1]}"
 
-            model.setItem(row, 0, item)
+                item = QStandardItem(dados_servico)
+
+                model.setItem(row, 0, item)
+            i += 1
         
     def alterar_dados_cliente_banco(self):
         
         novo_nome = self.alterar_dados_cliente.lineEdit.text()
         nova_senha = self.alterar_dados_cliente.lineEdit_2.text()
         novo_endereco = self.alterar_dados_cliente.lineEdit_3.text()
-        novo_cpf = self.alterar_dados_cliente.lineEdit_4.text()
-        nova_nascimento = self.alterar_dados_cliente.lineEdit_5.text()
-        if not(novo_nome == '' or nova_senha == '' or novo_endereco == '' or novo_cpf == '' or nova_nascimento == ''): 
-            menssagem =  f'alterar_U,{novo_nome},{nova_senha},{novo_endereco},{novo_cpf},{nova_nascimento}'
-            cliente_socket.send(menssagem.encode())
-            recebida = cliente_socket.recv(1024).decode()
+        nova_nascimento = self.alterar_dados_cliente.lineEdit_4.text()
+        if not(novo_nome == '' or nova_senha == '' or novo_endereco == '' or nova_nascimento == ''): 
+            menssagem =  f'alterar_U,{novo_nome},{nova_senha},{novo_endereco},{nova_nascimento}'
+            self.cliente_socket.send(menssagem.encode())
+            recebida = self.cliente_socket.recv(1024).decode()
             
             if recebida == "T":
                 QMessageBox.information(None, 'POOII', 'Dados do cliente alterados com sucesso!')
@@ -403,11 +464,8 @@ class Main(QMainWindow, Ui_Main):
             self.alterar_dados_cliente.lineEdit_2.setText('')
             self.alterar_dados_cliente.lineEdit_3.setText('')
             self.alterar_dados_cliente.lineEdit_4.setText('')
-            self.alterar_dados_cliente.lineEdit_5.setText('')
             self.verifica = False
             self.QtStack.setCurrentIndex(0)
-
-
 
     def alterar_dados_prestador_banco(self):
  
@@ -419,8 +477,8 @@ class Main(QMainWindow, Ui_Main):
         nova_area = self.altera_dados_prestador_serviços.lineEdit_6.text()
         if not(novo_nome == '' or nova_senha == '' or novo_local == '' or novo_cpf == '' or nova_especializacao == '' or nova_area == ''): 
             menssagem =  f'alterar_S,{novo_nome},{nova_senha},{novo_local},{novo_cpf},{nova_especializacao},{nova_area}'
-            cliente_socket.send(menssagem.encode())
-            recebida = cliente_socket.recv(1024).decode()
+            self.cliente_socket.send(menssagem.encode())
+            recebida = self.cliente_socket.recv(1024).decode()
             if recebida == "T":
                 QMessageBox.information(None, 'POOII', 'Dados alterados com sucesso!')
             else:
@@ -435,11 +493,9 @@ class Main(QMainWindow, Ui_Main):
             self.verifica = False
             self.QtStack.setCurrentIndex(0)
 
-
-
     def sair(self):
         mensagem = "bye"
-        cliente_socket.send(mensagem.encode())
+        self.cliente_socket.send(mensagem.encode())
         app.quit()
         
     def numero(self,cpf):
@@ -449,8 +505,12 @@ class Main(QMainWindow, Ui_Main):
         else:
             return False
 
+#######PARTE_DA_CONEXAO###############
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    show_main = Main()
+    app = QApplication(sys.argv)  
+    cliente = Cliente('localhost', 8007)
+    cliente.conectar_servidor()
     sys.exit(app.exec_())
+    
+#####################################

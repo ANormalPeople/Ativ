@@ -17,6 +17,7 @@ class Cadastro:
         self.verifica = False
 
     def login(self,senha,cpf):
+        self.de_cria()
         self.conta = self.busca_login(senha,cpf)
 
         if self.conta == None:
@@ -67,7 +68,7 @@ class Cadastro:
         sql_clientes = """CREATE TABLE IF NOT EXISTS clientes(id integer PRIMARY KEY AUTO_INCREMENT, nome text NOT NULL, senha text NOT NULL, endereco text NOT NULL, cpf_c int NOT null, nascimento text NOT NULL); """
         cursor.execute(sql_clientes)
         
-        sql_escolhidos = """CREATE TABLE IF NOT EXISTS servicos_escolhidos(cliente_id integer, servico_id integer, FOREIGN KEY (cliente_id) REFERENCES clientes(id), FOREIGN KEY (servico_id) REFERENCES servicos(id), PRIMARY KEY (cliente_id, servico_id));"""
+        sql_escolhidos = """CREATE TABLE IF NOT EXISTS servicos_escolhidos(cliente_id integer, servico_id integer,validacao text NOT NULL, FOREIGN KEY (cliente_id) REFERENCES clientes(id), FOREIGN KEY (servico_id) REFERENCES servicos(id), PRIMARY KEY (cliente_id, servico_id));"""
         cursor.execute(sql_escolhidos)
                 
         conect.close()
@@ -134,7 +135,6 @@ class Cadastro:
         if self.verifica == False:
             comando_sql = "DELETE FROM clientes WHERE cpf_C = %s"
             id_para_apagar = self.conta[4]
-            print(self.conta[0])
             cursor.execute("DELETE FROM servicos_escolhidos WHERE cliente_id = %s", (self.conta[0],))
         else:
             comando_sql = "DELETE FROM servicos WHERE cpf = %s"
@@ -159,7 +159,6 @@ class Cadastro:
         if (resultados == [] and x == 0):
             cursor.execute("SELECT * FROM clientes WHERE cpf_C  = %s AND senha = %s", (cpf, senha))
             resultados = cursor.fetchone()
-        print(resultados)
         conect.close()
         return resultados
     
@@ -167,7 +166,7 @@ class Cadastro:
 #############ALTERAR DADOS#########################
         
                 
-    def alterar_U(self,novo_nome,nova_senha,novo_endereco,novo_cpf,nova_nascimento):
+    def alterar_U(self,novo_nome,nova_senha,novo_endereco,nova_nascimento):
         try:
             conn = mysql.connect(
                 host='localhost',
@@ -176,8 +175,8 @@ class Cadastro:
                 database='sistema_de_servico'
             )
             cursor = conn.cursor()
-            comando_sql = "UPDATE clientes SET nome=%s,senha =%s, endereco=%s, cpf_C=%s, nascimento=%s WHERE cpf_C=%s"
-            cursor.execute(comando_sql, (novo_nome, nova_senha, novo_endereco, int(novo_cpf), nova_nascimento, self.conta[4]))
+            comando_sql = "UPDATE clientes SET nome=%s,senha =%s, endereco=%s, nascimento=%s WHERE cpf_C=%s"
+            cursor.execute(comando_sql, (novo_nome, nova_senha, novo_endereco, nova_nascimento, self.conta[4]))
 
             conn.commit()
             conn.close()
@@ -187,7 +186,7 @@ class Cadastro:
             self.conta = []
             return "F"
         
-    def alterar_S(self,novo_nome,nova_senha,novo_local,novo_cpf,nova_especializacao,nova_area):
+    def alterar_S(self,novo_nome,nova_senha,novo_local,nova_especializacao,nova_area):
         try:
             conn = mysql.connect(
                 host='localhost',
@@ -197,8 +196,8 @@ class Cadastro:
             )
 
             cursor = conn.cursor()
-            comando_sql = "UPDATE servicos SET nome=%s,senha=%s, local=%s, cpf=%s, especializacao=%s, area=%s WHERE cpf=%s"
-            cursor.execute(comando_sql, (novo_nome, nova_senha, novo_local, int(novo_cpf), nova_especializacao, nova_area, self.conta[4]))
+            comando_sql = "UPDATE servicos SET nome=%s,senha=%s, local=%s, especializacao=%s, area=%s WHERE cpf=%s"
+            cursor.execute(comando_sql, (novo_nome, nova_senha, novo_local, nova_especializacao, nova_area, self.conta[4]))
 
             conn.commit()
             conn.close()
@@ -256,8 +255,6 @@ class Cadastro:
                 cursor.execute("SELECT * FROM servicos WHERE id = %s", (id_servico[0],))
                 servico = cursor.fetchone()
                 servicos.append(servico)
-            print(servicos)
-            return servicos
         
         except Exception as e:
             print(f"Erro: {e}")
@@ -265,6 +262,7 @@ class Cadastro:
         finally:
             cursor.close()
             con.close()
+            return servicos
 
     def adicionar(self, servico_id):
         conn = mysql.connect(
@@ -279,7 +277,7 @@ class Cadastro:
         existe_associacao = cursor.fetchone()
 
         if not existe_associacao:
-            cursor.execute("INSERT INTO servicos_escolhidos (cliente_id, servico_id) VALUES (%s, %s)", (self.conta[0], servico_id))
+            cursor.execute("INSERT INTO servicos_escolhidos (cliente_id, servico_id,validacao) VALUES (%s, %s,%s)", (self.conta[0], servico_id,'F'))
 
         conn.commit()
         conn.close()
@@ -293,7 +291,6 @@ class Cadastro:
             database='sistema_de_servico'
         )
         cursor = conn.cursor()
-        print(self.conta[0],id)
         cursor.execute("DELETE FROM servicos_escolhidos WHERE cliente_id = %s AND servico_id = %s",(self.conta[0],id))
         conn.commit()
         conn.close()
@@ -305,7 +302,6 @@ class Cadastro:
     def pedidos(self):
         saida = []
         try:
-            saida = []
             conn = mysql.connect(
                 host='localhost',
                 user='root',
@@ -316,24 +312,52 @@ class Cadastro:
 
             cursor.execute("SELECT cliente_id FROM servicos_escolhidos WHERE servico_id = %s", (self.conta[0],))
             ids = cursor.fetchall()
-
+            cursor.execute("SELECT validacao FROM servicos_escolhidos WHERE servico_id = %s", (self.conta[0],))
+            validacao = cursor.fetchall()
+            print("foi ate aqui")
             for cliente_id in ids:
                 cursor.execute("SELECT * FROM clientes WHERE id = %s", cliente_id)
                 cliente_info = cursor.fetchone()
                 if cliente_info:
                     saida.append(cliente_info)
 
-            return saida
-
+    
         except Exception as e:
-            print(f"Erro ao acessar o banco de dados: {e}")
-            return saida
+            print(f"Erro ao acessar o banco de dados2: {e}")
+            return [],[]
 
         finally:
             cursor.close()
             conn.close()
+            return saida,validacao
 
 ###############VER_PEDIDOS#########################
+
+
+###############NOTIFICAÇÕES########################
+
+    def modificando(self,id):
+        try:
+            conn = mysql.connect(
+                host='localhost',
+                user='root',
+                password='Ripanlong807!',
+                database='sistema_de_servico'
+            )
+#validacao
+            cursor = conn.cursor()
+            comando_sql = "UPDATE servicos_escolhidos SET validacao=%s WHERE cliente_id=%s"
+            cursor.execute(comando_sql, ('T',id))
+
+            conn.commit()
+            self.conta = []
+            
+        except Exception as e:
+            print(f"Erro ao acessar o banco de dados: {e}")
+
+        finally:
+            cursor.close()
+            conn.close()
 
 
 
@@ -343,9 +367,35 @@ class Cadastro:
 
 
 
+
 #SV
 #criar uma classe com a função sv.
+
 def server(con):
+
+    """
+    Função utilizada para atender a comunicação com clientes.
+
+    A função em questao faz a utilização da classe cadastro, ela recebe mensagens enviadas pelo cliente
+    e faz a comparação delas em varios ifs e elifs dentro de um while true para poder receber varios clientes
+    e funcionar indenpendetemente, caso não encontre um caso ela da pass e nao faz nada,
+    cada if compara a mensagem enviada pelo cliente e caso se encaixe entra em uma função especifica da 
+    classe cadastro e realiza uma ação especifica no banco de dados enviado os resultados dessa ação novamente
+    para o cliente.
+
+    Parameters
+    ----------
+    con : socket
+        O objeto de soquete que representa a conexão com o cliente.
+
+    Raises
+    ------
+    Exception
+        Qualquer exceção que ocorra durante a execução das comparações antes ditas.
+
+    """
+
+
     x = True
     print(f"Cliente se conectou")
     cadastro = Cadastro()
@@ -383,11 +433,11 @@ def server(con):
                 con.send(str(A).encode())
 
             elif comando[0] == "alterar_U":
-                veri = cadastro.alterar_U(comando[1], comando[2], comando[3], comando[4], comando[5])
+                veri = cadastro.alterar_U(comando[1], comando[2], comando[3], comando[4])
                 con.send(veri.encode())
                 
             elif comando[0] == "alterar_S":
-                veri = cadastro.alterar_S(comando[1], comando[2], comando[3], comando[4], comando[5],comando[6])
+                veri = cadastro.alterar_S(comando[1], comando[2], comando[3], comando[4], comando[5])
                 con.send(veri.encode())
             
             elif comando[0] == "escolha":
@@ -399,7 +449,6 @@ def server(con):
                 servicos = cadastro.busca(int(comando[1]),comando[2],1)
                 if servicos != []:
                     a = 1
-                    print(servicos[0])
                     cadastro.adicionar(servicos[0])
                 else:
                     a = 0
@@ -412,6 +461,9 @@ def server(con):
                 a = cadastro.pedidos()
                 data = pickle.dumps(a)
                 con.send(data)
+                   
+            elif comando[0] == "modificar_validade":
+                cadastro.modificando(comando[1])
                                 
             elif x:
                 pass
