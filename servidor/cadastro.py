@@ -314,7 +314,6 @@ class Cadastro:
             ids = cursor.fetchall()
             cursor.execute("SELECT validacao FROM servicos_escolhidos WHERE servico_id = %s", (self.conta[0],))
             validacao = cursor.fetchall()
-            print("foi ate aqui")
             for cliente_id in ids:
                 cursor.execute("SELECT * FROM clientes WHERE id = %s", cliente_id)
                 cliente_info = cursor.fetchone()

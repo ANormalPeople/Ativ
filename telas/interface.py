@@ -133,8 +133,8 @@ class Main(QMainWindow, Ui_Main):
         self.tela_prestador_servico.pushButton_6.clicked.connect(self.Abrir_pedidos)
 
         # TELA ALTERAR DADOS SERVICO(BOTAO VOLTAR)
-        self.altera_dados_prestador_serviços.pushButton.clicked.connect(self.botaoVolta_prestador)
-        self.altera_dados_prestador_serviços.pushButton_2.clicked.connect(self.alterar_dados_prestador_banco)
+        self.altera_dados_prestador_serviços.pushButton_2.clicked.connect(self.botaoVolta_prestador)
+        self.altera_dados_prestador_serviços.pushButton.clicked.connect(self.alterar_dados_prestador_banco)
 
         # self.tela_prestador_servico.pushButton_5.clicked.connect(self.botao_limpar)
         # self.tela_prestador_servico.pushButton_6.clicked.connect(self.botao_Ver_serviços)
@@ -233,6 +233,7 @@ class Main(QMainWindow, Ui_Main):
                     self.popular_noficiacoes()
 
                 else:
+                    print("entrou aqui")
                     self.QtStack.setCurrentIndex(3)
                     self.tela_cliente.label_4.setText(f'logado como {Nome} ')
 
@@ -243,22 +244,24 @@ class Main(QMainWindow, Ui_Main):
 
         self.tela_inicial.CPF_LOGIN.setText('')
         self.tela_inicial.SENHA_LOGIN.setText('')
-    
+        self.verifica = "F" 
+        
+        
+          
 #########AREA DAS NOTIFICAÇÕES##########    
     
     def popular_noficiacoes(self):
         listview = self.tela_prestador_servico.listView
         model = QStandardItemModel()
         listview.setModel(model)
+        self.tela_prestador_servico.listView.clicked.connect(self.item_clicado_notificacao)
         mensagem = "pedidos"
         self.cliente_socket.send(mensagem.encode())
         data_recebida = self.cliente_socket.recv(1024)
-        
-        if pickle.loads(data_recebida) != []:
+        if data_recebida:
             data,valida = pickle.loads(data_recebida)
         else:
             data,valida = [],[]
-        print(data,valida)
         i = 0
         for row, servicos in enumerate(data):
             if(valida[i] == ('F',)):
@@ -268,8 +271,6 @@ class Main(QMainWindow, Ui_Main):
                 item.setData(id, Qt.UserRole + 1)
                 model.setItem(row, 0, item)
             i += 1
-        self.tela_prestador_servico.listView.clicked.connect(self.item_clicado_notificacao)
-
         
 
     def item_clicado_notificacao(self, index: QModelIndex):
@@ -280,7 +281,7 @@ class Main(QMainWindow, Ui_Main):
                 id = item.data(Qt.UserRole + 1)
                 mensagem = f"modificar_validade,{id}"
                 self.cliente_socket.send(mensagem.encode())
-                # self.popular_noficiacoes()
+                self.popular_noficiacoes()
                 # recive = cliente_socket.recv(1024).decode
                 
 ##################################################
@@ -421,8 +422,7 @@ class Main(QMainWindow, Ui_Main):
         mensagem = "pedidos"
         self.cliente_socket.send(mensagem.encode())
         data_recebida = self.cliente_socket.recv(1024)
-        
-        if pickle.loads(data_recebida) != []:
+        if data_recebida:
             data,valida = pickle.loads(data_recebida)
         else:
             data,valida = [],[]
@@ -472,11 +472,10 @@ class Main(QMainWindow, Ui_Main):
         novo_nome = self.altera_dados_prestador_serviços.lineEdit.text()
         nova_senha = self.altera_dados_prestador_serviços.lineEdit_2.text()
         novo_local = self.altera_dados_prestador_serviços.lineEdit_3.text()
-        novo_cpf = self.altera_dados_prestador_serviços.lineEdit_4.text()
-        nova_especializacao = self.altera_dados_prestador_serviços.lineEdit_5.text()
-        nova_area = self.altera_dados_prestador_serviços.lineEdit_6.text()
-        if not(novo_nome == '' or nova_senha == '' or novo_local == '' or novo_cpf == '' or nova_especializacao == '' or nova_area == ''): 
-            menssagem =  f'alterar_S,{novo_nome},{nova_senha},{novo_local},{novo_cpf},{nova_especializacao},{nova_area}'
+        nova_especializacao = self.altera_dados_prestador_serviços.lineEdit_4.text()
+        nova_area = self.altera_dados_prestador_serviços.lineEdit_5.text()
+        if not(novo_nome == '' or nova_senha == '' or novo_local == '' or nova_especializacao == '' or nova_area == ''): 
+            menssagem =  f'alterar_S,{novo_nome},{nova_senha},{novo_local},{nova_especializacao},{nova_area}'
             self.cliente_socket.send(menssagem.encode())
             recebida = self.cliente_socket.recv(1024).decode()
             if recebida == "T":
@@ -489,7 +488,6 @@ class Main(QMainWindow, Ui_Main):
             self.altera_dados_prestador_serviços.lineEdit_3.setText('')
             self.altera_dados_prestador_serviços.lineEdit_4.setText('')
             self.altera_dados_prestador_serviços.lineEdit_5.setText('')
-            self.altera_dados_prestador_serviços.lineEdit_6.setText('')
             self.verifica = False
             self.QtStack.setCurrentIndex(0)
 
