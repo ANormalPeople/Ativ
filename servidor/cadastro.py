@@ -29,7 +29,7 @@ class Cadastro:
                 return self.conta[1],"T","F"
         
     def busca_login(self,senha,cpf):
-                
+        
         conect = mysql.connect(host='localhost', database='sistema_de_servico', user='root', password='Ripanlong807!')
         cursor = conect.cursor()
 
@@ -68,7 +68,7 @@ class Cadastro:
         sql_clientes = """CREATE TABLE IF NOT EXISTS clientes(id integer PRIMARY KEY AUTO_INCREMENT, nome text NOT NULL, senha text NOT NULL, endereco text NOT NULL, cpf_c int NOT null, nascimento text NOT NULL); """
         cursor.execute(sql_clientes)
         
-        sql_escolhidos = """CREATE TABLE IF NOT EXISTS servicos_escolhidos(cliente_id integer, servico_id integer,validacao text NOT NULL, FOREIGN KEY (cliente_id) REFERENCES clientes(id), FOREIGN KEY (servico_id) REFERENCES servicos(id), PRIMARY KEY (cliente_id, servico_id));"""
+        sql_escolhidos = """CREATE TABLE IF NOT EXISTS servicos_escolhidos(cliente_id integer, servico_id integer,validacao text NOT NULL, noti INTEGER DEFAULT 0, FOREIGN KEY (cliente_id) REFERENCES clientes(id), FOREIGN KEY (servico_id) REFERENCES servicos(id), PRIMARY KEY (cliente_id, servico_id));"""
         cursor.execute(sql_escolhidos)
                 
         conect.close()
@@ -301,6 +301,8 @@ class Cadastro:
 ###############VER_PEDIDOS#########################
     def pedidos(self):
         saida = []
+        validacao = "F"
+        
         try:
             conn = mysql.connect(
                 host='localhost',
@@ -309,7 +311,6 @@ class Cadastro:
                 database='sistema_de_servico'
             )
             cursor = conn.cursor()
-
             cursor.execute("SELECT cliente_id FROM servicos_escolhidos WHERE servico_id = %s", (self.conta[0],))
             ids = cursor.fetchall()
             cursor.execute("SELECT validacao FROM servicos_escolhidos WHERE servico_id = %s", (self.conta[0],))
@@ -319,10 +320,9 @@ class Cadastro:
                 cliente_info = cursor.fetchone()
                 if cliente_info:
                     saida.append(cliente_info)
-
     
         except Exception as e:
-            print(f"Erro ao acessar o banco de dados2: {e}")
+            print(f"Erro ao acessar o banco de dados21: {e}")
             return [],[]
 
         finally:
@@ -332,8 +332,63 @@ class Cadastro:
 
 ###############VER_PEDIDOS#########################
 
+    def notificacao_cliente(self):
+            saida = []
 
-###############NOTIFICAÇÕES########################
+            try:
+                conn = mysql.connect(
+                    host='localhost',
+                    user='root',
+                    password='Ripanlong807!',
+                    database='sistema_de_servico'
+                )
+                cursor = conn.cursor()
+                cursor.execute("SELECT servico_id FROM servicos_escolhidos WHERE cliente_id = %s AND noti = 0 AND validacao = 'T'", (self.conta[0],))
+                ids = cursor.fetchall()
+                for servico_id in ids:
+                    cursor.execute("SELECT * FROM servicos WHERE id = %s", servico_id)
+                    servico_info = cursor.fetchone()
+                    if servico_info:
+                        saida.append(servico_info)
+        
+            except Exception as e:
+                print(f"Erro ao acessar o banco de dados: {e}")
+                return []
+
+            finally:
+                cursor.close()
+                conn.close()
+                return saida
+
+    def limpando_noti(self):
+
+        try:
+            conn = mysql.connect(
+                host='localhost',
+                user='root',
+                password='Ripanlong807!',
+                database='sistema_de_servico'
+            )
+            cursor = conn.cursor()
+            cursor.execute("SELECT servico_id FROM servicos_escolhidos WHERE cliente_id = %s AND noti = 0 AND validacao = 'T'", (self.conta[0],))
+            ids = cursor.fetchall()
+
+            for servico_id in ids:
+                cursor.execute("UPDATE servicos_escolhidos SET noti = 1 WHERE cliente_id = %s AND servico_id = %s", (self.conta[0], servico_id[0]))
+
+            conn.commit()
+        
+        except Exception as e:
+            print(f"Erro ao acessar o banco de dados: {e}")
+            
+
+        finally:
+            cursor.close()
+            conn.close()
+                
+        
+
+    ###############NOTIFICAÇÕES########################
 
     def modificando(self,id):
         try:
@@ -343,7 +398,7 @@ class Cadastro:
                 password='Ripanlong807!',
                 database='sistema_de_servico'
             )
-#validacao
+    #validacao
             cursor = conn.cursor()
             comando_sql = "UPDATE servicos_escolhidos SET validacao=%s WHERE cliente_id=%s"
             cursor.execute(comando_sql, ('T',id))
@@ -463,6 +518,14 @@ def server(con):
                    
             elif comando[0] == "modificar_validade":
                 cadastro.modificando(comando[1])
+          
+            elif comando[0] == "pedidos_vistos":
+                a = cadastro.notificacao_cliente()
+                data = pickle.dumps(a)
+                con.send(data)
+                
+            elif comando[0] == "limpar_notificacoes":
+                 cadastro.limpando_noti()
                                 
             elif x:
                 pass

@@ -120,6 +120,7 @@ class Main(QMainWindow, Ui_Main):
         self.tela_cliente.pushButton_2.clicked.connect(self.abrirTelaesolhar_servico)
         self.tela_cliente.pushButton_3.clicked.connect(self.botao_apagar_conta)
         self.tela_cliente.pushButton_4.clicked.connect(self.botaoVoltar_inicio)
+        self.tela_cliente.pushButton_5.clicked.connect(self.botao_limpar)
 
         # TELA ALTERAR DADOS CLIENTE (BOTAS VOLTAR)
         self.alterar_dados_cliente.pushButton_2.clicked.connect(self.botaoVolta_cliente)
@@ -159,7 +160,6 @@ class Main(QMainWindow, Ui_Main):
             menssagem =  f'cadastro_U,{nome},{senha},{endereco},{cpf_C},{nascimento}'
             self.cliente_socket.send(menssagem.encode())
             recebida = self.cliente_socket.recv(1024).decode()
-            print(recebida)
             if (recebida == "T"):
                 QMessageBox.information(None,'POOII', 'Cadastro realizado com sucesso!')
             else:
@@ -236,16 +236,14 @@ class Main(QMainWindow, Ui_Main):
                     print("entrou aqui")
                     self.QtStack.setCurrentIndex(3)
                     self.tela_cliente.label_4.setText(f'logado como {Nome} ')
-
+                    self.popular_noficiacoes_cliente()
             else:
                 QMessageBox.information(None,'POOII', 'Conta não encontrada!')                
         else:
             QMessageBox.information(None,'POOII', 'Todos os valores devem ser preenchidos!')
 
         self.tela_inicial.CPF_LOGIN.setText('')
-        self.tela_inicial.SENHA_LOGIN.setText('')
-        self.verifica = "F" 
-        
+        self.tela_inicial.SENHA_LOGIN.setText('')        
         
           
 #########AREA DAS NOTIFICAÇÕES##########    
@@ -282,8 +280,31 @@ class Main(QMainWindow, Ui_Main):
                 mensagem = f"modificar_validade,{id}"
                 self.cliente_socket.send(mensagem.encode())
                 self.popular_noficiacoes()
-                # recive = cliente_socket.recv(1024).decode
-                
+
+
+############parte_do_Cliente######################
+    
+    def popular_noficiacoes_cliente(self):
+        listview = self.tela_cliente.listView
+        model = QStandardItemModel()
+        listview.setModel(model)
+        #self.tela_prestador_servico.listView.clicked.connect(self.item_clicado_notificacao)
+        mensagem = "pedidos_vistos"
+        self.cliente_socket.send(mensagem.encode())
+        data_recebida = self.cliente_socket.recv(1024)
+        if data_recebida:
+            data = pickle.loads(data_recebida)
+        else:
+            data = []
+        i = 0
+        for row, servicos in enumerate(data):
+            id = servicos[0]
+            data = f"Pedido de {servicos[1]} foi aceito!"            
+            item = QStandardItem(data)            
+            item.setData(id, Qt.UserRole + 1)
+            model.setItem(row, 0, item)
+            i += 1
+
 ##################################################
                 
                 
@@ -321,7 +342,7 @@ class Main(QMainWindow, Ui_Main):
 
         self.tela_escolha_servico.listView_2.clicked.connect(self.armazenar_item)
 
-        self.tela_escolha_servico.pushButton_3.clicked.connect(self.acao_botao)
+        self.tela_escolha_servico.pushButton_3.clicked.connect(self.remove_botao)
         self.tela_escolha_servico.listView.clicked.connect(self.item_clicado)
         self.popular_lista(received_data)
 
@@ -395,13 +416,18 @@ class Main(QMainWindow, Ui_Main):
             self.item_clicado_F = item
 
 
-    def acao_botao(self):
+    def remove_botao(self):
         if self.item_clicado_F is not None and self.true == True:
             id = self.item_clicado_F.data(Qt.UserRole + 1)
             mensagem = f"remove,{id}"
             self.cliente_socket.send(mensagem.encode())
             self.true = False
             self.popular_lista_2()
+                
+    def botao_limpar(self):
+        mensagem = "limpar_notificacoes"
+        self.cliente_socket.send(mensagem.encode())
+        self.popular_noficiacoes_cliente()
                 
     def botaoalterar_dados_cliente(self):
         self.QtStack.setCurrentIndex(6)
@@ -426,7 +452,6 @@ class Main(QMainWindow, Ui_Main):
             data,valida = pickle.loads(data_recebida)
         else:
             data,valida = [],[]
-        print(data,valida)    
         self.popular_pedidos(data,valida)
         self.QtStack.setCurrentIndex(8)
         
@@ -464,7 +489,6 @@ class Main(QMainWindow, Ui_Main):
             self.alterar_dados_cliente.lineEdit_2.setText('')
             self.alterar_dados_cliente.lineEdit_3.setText('')
             self.alterar_dados_cliente.lineEdit_4.setText('')
-            self.verifica = False
             self.QtStack.setCurrentIndex(0)
 
     def alterar_dados_prestador_banco(self):
@@ -488,7 +512,6 @@ class Main(QMainWindow, Ui_Main):
             self.altera_dados_prestador_serviços.lineEdit_3.setText('')
             self.altera_dados_prestador_serviços.lineEdit_4.setText('')
             self.altera_dados_prestador_serviços.lineEdit_5.setText('')
-            self.verifica = False
             self.QtStack.setCurrentIndex(0)
 
     def sair(self):
